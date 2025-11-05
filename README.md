@@ -28,13 +28,13 @@ git clone https://github.com/danielmiessler/SecLists.git
 
 
 
-\# PayloadsAllTheThings (~1GB)
+# PayloadsAllTheThings (~1GB)
 
 git clone https://github.com/swisskyrepo/PayloadsAllTheThings.git
 
 
 
-\# fuzzdb (~500MB)
+# fuzzdb (~500MB)
 
 git clone https://github.com/fuzzdb-project/fuzzdb.git
 

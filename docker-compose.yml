@@ -1,0 +1,53 @@
+version: "3.9"
+services:
+  juice-shop:
+    image: bkimminich/juice-shop
+    container_name: juice-shop
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: dev
+
+  dvwa:
+    image: vulnerables/web-dvwa
+    container_name: dvwa
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+
+  bwapp_db:
+    image: mysql:5.7
+    container_name: bwapp_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpasswd
+      MYSQL_DATABASE: bWAPP          # создаётся автоматически при первом запуске
+      MYSQL_USER: bee
+      MYSQL_PASSWORD: bug
+    ports:
+      - "3306:3306"
+    volumes:
+      - bwapp_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpasswd"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  bwapp:
+    image: raesene/bwapp
+    container_name: bwapp
+    depends_on:
+      bwapp_db:
+        condition: service_healthy
+    environment:
+      MYSQL_USER: bee
+      MYSQL_PASSWORD: bug
+      MYSQL_DATABASE: bWAPP
+      MYSQL_HOST: localhost
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+volumes:
+  bwapp_data: {}

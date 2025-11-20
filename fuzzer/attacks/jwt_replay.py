@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import List
 
 import httpx
@@ -9,17 +10,11 @@ from fuzzer.runners.storage import Endpoint, AuthContext
 
 
 class JwtReplay(AttackStrategy):
-    """
-    Простая проверка повторного использования JWT.
-    Предполагается, что токены в AuthContext.jwt_tokens могут быть "старыми" / повторно используемыми.
-    """
-
     name = "jwt_replay"
 
     def applicable(self, endpoint: Endpoint, ctx: AuthContext) -> bool:
         if not ctx.jwt_tokens:
             return False
-        # считаем, что jwt актуален только для запросов с auth-заголовком
         return endpoint.has_auth_header
 
     async def run(
@@ -30,22 +25,44 @@ class JwtReplay(AttackStrategy):
     ) -> List[AttackResult]:
         results: List[AttackResult] = []
 
-        # здесь предполагается, что endpoint.path содержит полный URL
-        url = endpoint.path
+        # === Правильно собранный URL ===
+        # ctx.base_url гарантированно есть, endpoint.path всегда начинается с /
+        if hasattr(ctx, "base_url"):
+            url = ctx.base_url.rstrip("/") + endpoint.path
+        else:
+            # запасной вариант
+            url = endpoint.path
 
         for token in ctx.jwt_tokens:
-            headers = dict(ctx.headers)
+
+            headers = dict(endpoint.headers or {})
             headers["Authorization"] = f"Bearer {token}"
 
-            resp = await client.request(
-                endpoint.method,
-                url,
-                headers=headers,
-                cookies=ctx.cookies,
-                data=ctx.payload,
-            )
+            FORBIDDEN = {"content-length", "transfer-encoding", "host", "connection"}
+            headers = {k: v for k, v in headers.items() if k.lower() not in FORBIDDEN}
 
-            # если токен успешно принимается — фиксируем как потенциальную проблему
+            # === обработка тела ===
+            body = endpoint.body
+            content = None
+
+            if body not in (None, "", {}):
+                if isinstance(body, (dict, list)):
+                    content = json.dumps(body)
+                elif isinstance(body, bytes):
+                    content = body
+                else:
+                    content = str(body)
+
+            try:
+                resp = await client.request(
+                    endpoint.method,
+                    url,
+                    headers=headers,
+                    content=content
+                )
+            except Exception as exc:
+                return []  # в атаке ошибка — просто не фиксируем
+
             if resp.status_code == 200:
                 results.append(
                     AttackResult(

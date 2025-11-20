@@ -1,0 +1,8 @@
+{
+  "scan_id": "f3404f2c-d88d-4326-92e0-c794cd7b2748",
+  "target": "juice-shop",
+  "base_url": "http://localhost:3000",
+  "generated": 1763582770.2369,
+  "issues": [],
+  "total": 0
+}
